@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -eux
+set -o pipefail
+
+curl \
+  --fail \
+  --silent \
+   --output schema.json \
+  'https://raw.githubusercontent.com/modelcontextprotocol/specification/refs/heads/main/schema/schema.json'
+
+go run github.com/atombender/go-jsonschema \
+  schema.json \
+  --package mcp \
+  --output schema.go
