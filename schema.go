@@ -3025,6 +3025,9 @@ type ToolInputSchema struct {
 	// Properties corresponds to the JSON schema field "properties".
 	Properties ToolInputSchemaProperties `json:"properties,omitempty" yaml:"properties,omitempty" mapstructure:"properties,omitempty"`
 
+	// Required corresponds to the JSON schema field "required".
+	Required []string `json:"required,omitempty" yaml:"required,omitempty" mapstructure:"required,omitempty"`
+
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
 }

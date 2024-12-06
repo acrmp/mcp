@@ -118,6 +118,16 @@ func (h *handler) handleToolCall(ctx context.Context, conn *jsonrpc2.Conn, req *
 		return
 	}
 
+	for _, rqd := range t.Metadata.InputSchema.Required {
+		if _, ok := params.Arguments[rqd]; !ok {
+			h.replyWithJSONRPCError(ctx, conn, req, &jsonrpc2.Error{
+				Code:    jsonrpc2.CodeInvalidParams,
+				Message: "Invalid params",
+			})
+			return
+		}
+	}
+
 	response, err := t.Execute(params)
 	if err != nil {
 		h.replyWithToolError(ctx, conn, req, err.Error())

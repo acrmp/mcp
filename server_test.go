@@ -93,7 +93,7 @@ var _ = Describe("Server", func() {
 				stdin.WriteString(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
 				Eventually(session.Out).Should(gbytes.Say("tools"))
 
-				Expect(lastResponse(session.Out.Contents())).To(MatchJSON(`{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"sha256sum","description":"Compute a SHA-256 checksum","inputSchema":{"type":"object","properties":{"text":{"type":"string","description":"Text to compute a checksum for"}}}}]}}`))
+				Expect(lastResponse(session.Out.Contents())).To(MatchJSON(`{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"sha256sum","description":"Compute a SHA-256 checksum","inputSchema":{"type":"object","properties":{"text":{"type":"string","description":"Text to compute a checksum for"}},"required":["text"]}}]}}`))
 			})
 		})
 		Context("when the client requests the list of tools with an invalid cursor", func() {
@@ -108,6 +108,13 @@ var _ = Describe("Server", func() {
 				stdin.WriteString(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sha256sum","arguments":{"text":"the rain in spain falls mainly on the plains"}}}`)
 				Eventually(session.Out).Should(gbytes.Say("\n"))
 				Expect(lastResponse(session.Out.Contents())).To(MatchJSON(`{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"b65aacbdd951ff4cd8acef585d482ca4baef81fa0e32132b842fddca3b5590e9"}],"isError":false}}`))
+			})
+		})
+		Context("when the client calls a tool without providing the required arguments", func() {
+			It("responds with a protocol error", func() {
+				stdin.WriteString(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sha256sum","arguments":{}}}`)
+				Eventually(session.Out).Should(gbytes.Say("\n"))
+				Expect(lastResponse(session.Out.Contents())).To(MatchJSON(`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"},"id":2}`))
 			})
 		})
 		Context("when the client calls a tool numerous times in a short period", func() {

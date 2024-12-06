@@ -29,6 +29,7 @@ func main() {
 							"description": "Text to compute a checksum for",
 						},
 					},
+					Required: []string{"text"},
 				},
 			},
 			Execute:   computeSHA256,
