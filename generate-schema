@@ -6,7 +6,7 @@ curl \
   --fail \
   --silent \
    --output schema.json \
-  'https://raw.githubusercontent.com/modelcontextprotocol/specification/refs/heads/main/schema/schema.json'
+  'https://raw.githubusercontent.com/modelcontextprotocol/specification/refs/heads/main/schema/2025-03-26/schema.json'
 
 go run github.com/atombender/go-jsonschema \
   schema.json \

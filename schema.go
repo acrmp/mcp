@@ -6,14 +6,9 @@ import "encoding/json"
 import "fmt"
 import "reflect"
 
-// Base for objects that include optional annotations for the client. The client
-// can use annotations to inform how objects are used or displayed
-type Annotated struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *AnnotatedAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
-}
-
-type AnnotatedAnnotations struct {
+// Optional annotations for the client. The client can use annotations to inform
+// how objects are used or displayed
+type Annotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
 	// It can include multiple entries to indicate content useful for multiple
@@ -29,8 +24,8 @@ type AnnotatedAnnotations struct {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *AnnotatedAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain AnnotatedAnnotations
+func (j *Annotations) UnmarshalJSON(b []byte) error {
+	type Plain Annotations
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
@@ -41,7 +36,47 @@ func (j *AnnotatedAnnotations) UnmarshalJSON(b []byte) error {
 	if plain.Priority != nil && 0 > *plain.Priority {
 		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
 	}
-	*j = AnnotatedAnnotations(plain)
+	*j = Annotations(plain)
+	return nil
+}
+
+// Audio provided to or from an LLM.
+type AudioContent struct {
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+
+	// The base64-encoded audio data.
+	Data string `json:"data" yaml:"data" mapstructure:"data"`
+
+	// The MIME type of the audio. Different providers may support different audio
+	// types.
+	MimeType string `json:"mimeType" yaml:"mimeType" mapstructure:"mimeType"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *AudioContent) UnmarshalJSON(b []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["data"]; raw != nil && !ok {
+		return fmt.Errorf("field data in AudioContent: required")
+	}
+	if _, ok := raw["mimeType"]; raw != nil && !ok {
+		return fmt.Errorf("field mimeType in AudioContent: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in AudioContent: required")
+	}
+	type Plain AudioContent
+	var plain Plain
+	if err := json.Unmarshal(b, &plain); err != nil {
+		return err
+	}
+	*j = AudioContent(plain)
 	return nil
 }
 
@@ -614,46 +649,14 @@ type Cursor string
 // It is up to the client how best to render embedded resources for the benefit
 // of the LLM and/or the user.
 type EmbeddedResource struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *EmbeddedResourceAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
 
 	// Resource corresponds to the JSON schema field "resource".
 	Resource interface{} `json:"resource" yaml:"resource" mapstructure:"resource"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
-type EmbeddedResourceAnnotations struct {
-	// Describes who the intended customer of this object or data is.
-	//
-	// It can include multiple entries to indicate content useful for multiple
-	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
-
-	// Describes how important this data is for operating the server.
-	//
-	// A value of 1 means "most important," and indicates that the data is
-	// effectively required, while 0 means "least important," and indicates that
-	// the data is entirely optional.
-	Priority *float64 `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *EmbeddedResourceAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain EmbeddedResourceAnnotations
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	if plain.Priority != nil && 1 < *plain.Priority {
-		return fmt.Errorf("field %s: must be <= %v", "priority", 1)
-	}
-	if plain.Priority != nil && 0 > *plain.Priority {
-		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
-	}
-	*j = EmbeddedResourceAnnotations(plain)
-	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -773,8 +776,8 @@ func (j *GetPromptResult) UnmarshalJSON(b []byte) error {
 
 // An image provided to or from an LLM.
 type ImageContent struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *ImageContentAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
 
 	// The base64-encoded image data.
 	Data string `json:"data" yaml:"data" mapstructure:"data"`
@@ -785,38 +788,6 @@ type ImageContent struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
-type ImageContentAnnotations struct {
-	// Describes who the intended customer of this object or data is.
-	//
-	// It can include multiple entries to indicate content useful for multiple
-	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
-
-	// Describes how important this data is for operating the server.
-	//
-	// A value of 1 means "most important," and indicates that the data is
-	// effectively required, while 0 means "least important," and indicates that
-	// the data is entirely optional.
-	Priority *float64 `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *ImageContentAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain ImageContentAnnotations
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	if plain.Priority != nil && 1 < *plain.Priority {
-		return fmt.Errorf("field %s: must be <= %v", "priority", 1)
-	}
-	if plain.Priority != nil && 0 > *plain.Priority {
-		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
-	}
-	*j = ImageContentAnnotations(plain)
-	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -1034,6 +1005,14 @@ func (j *InitializedNotification) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// A JSON-RPC batch request, as described in
+// https://www.jsonrpc.org/specification#batch.
+type JSONRPCBatchRequest []interface{}
+
+// A JSON-RPC batch response, as described in
+// https://www.jsonrpc.org/specification#batch.
+type JSONRPCBatchResponse []interface{}
+
 // A response to a request that indicates an error occurred.
 type JSONRPCError struct {
 	// Error corresponds to the JSON schema field "error".
@@ -1104,6 +1083,8 @@ func (j *JSONRPCError) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// Refers to any valid JSON-RPC object that can be decoded off the wire, or encoded
+// to be sent.
 type JSONRPCMessage interface{}
 
 // A notification which does not expect a response.
@@ -1940,6 +1921,9 @@ type ProgressNotification struct {
 }
 
 type ProgressNotificationParams struct {
+	// An optional message describing the current progress.
+	Message *string `json:"message,omitempty" yaml:"message,omitempty" mapstructure:"message,omitempty"`
+
 	// The progress thus far. This should increase every time progress is made, even
 	// if the total is unknown.
 	Progress float64 `json:"progress" yaml:"progress" mapstructure:"progress"`
@@ -2294,8 +2278,8 @@ func (j *Request) UnmarshalJSON(b []byte) error {
 
 // A known resource that the server is capable of reading.
 type Resource struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *ResourceAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
 
 	// A description of what this resource represents.
 	//
@@ -2311,40 +2295,15 @@ type Resource struct {
 	// This can be used by clients to populate UI elements.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
 
+	// The size of the raw resource content, in bytes (i.e., before base64 encoding or
+	// any tokenization), if known.
+	//
+	// This can be used by Hosts to display file sizes and estimate context window
+	// usage.
+	Size *int `json:"size,omitempty" yaml:"size,omitempty" mapstructure:"size,omitempty"`
+
 	// The URI of this resource.
 	Uri string `json:"uri" yaml:"uri" mapstructure:"uri"`
-}
-
-type ResourceAnnotations struct {
-	// Describes who the intended customer of this object or data is.
-	//
-	// It can include multiple entries to indicate content useful for multiple
-	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
-
-	// Describes how important this data is for operating the server.
-	//
-	// A value of 1 means "most important," and indicates that the data is
-	// effectively required, while 0 means "least important," and indicates that
-	// the data is entirely optional.
-	Priority *float64 `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *ResourceAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain ResourceAnnotations
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	if plain.Priority != nil && 1 < *plain.Priority {
-		return fmt.Errorf("field %s: must be <= %v", "priority", 1)
-	}
-	if plain.Priority != nil && 0 > *plain.Priority {
-		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
-	}
-	*j = ResourceAnnotations(plain)
-	return nil
 }
 
 // The contents of a specific resource or sub-resource.
@@ -2447,8 +2406,8 @@ func (j *ResourceReference) UnmarshalJSON(b []byte) error {
 
 // A template description for resources available on the server.
 type ResourceTemplate struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *ResourceTemplateAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
 
 	// A description of what this template is for.
 	//
@@ -2468,38 +2427,6 @@ type ResourceTemplate struct {
 	// A URI template (according to RFC 6570) that can be used to construct resource
 	// URIs.
 	UriTemplate string `json:"uriTemplate" yaml:"uriTemplate" mapstructure:"uriTemplate"`
-}
-
-type ResourceTemplateAnnotations struct {
-	// Describes who the intended customer of this object or data is.
-	//
-	// It can include multiple entries to indicate content useful for multiple
-	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
-
-	// Describes how important this data is for operating the server.
-	//
-	// A value of 1 means "most important," and indicates that the data is
-	// effectively required, while 0 means "least important," and indicates that
-	// the data is entirely optional.
-	Priority *float64 `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *ResourceTemplateAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain ResourceTemplateAnnotations
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	if plain.Priority != nil && 1 < *plain.Priority {
-		return fmt.Errorf("field %s: must be <= %v", "priority", 1)
-	}
-	if plain.Priority != nil && 0 > *plain.Priority {
-		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
-	}
-	*j = ResourceTemplateAnnotations(plain)
-	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -2751,6 +2678,9 @@ func (j *SamplingMessage) UnmarshalJSON(b []byte) error {
 // this schema, but this is not a closed set: any server can define its own,
 // additional capabilities.
 type ServerCapabilities struct {
+	// Present if the server supports argument autocompletion suggestions.
+	Completions ServerCapabilitiesCompletions `json:"completions,omitempty" yaml:"completions,omitempty" mapstructure:"completions,omitempty"`
+
 	// Experimental, non-standard capabilities that the server supports.
 	Experimental ServerCapabilitiesExperimental `json:"experimental,omitempty" yaml:"experimental,omitempty" mapstructure:"experimental,omitempty"`
 
@@ -2766,6 +2696,9 @@ type ServerCapabilities struct {
 	// Present if the server offers any tools to call.
 	Tools *ServerCapabilitiesTools `json:"tools,omitempty" yaml:"tools,omitempty" mapstructure:"tools,omitempty"`
 }
+
+// Present if the server supports argument autocompletion suggestions.
+type ServerCapabilitiesCompletions map[string]interface{}
 
 // Experimental, non-standard capabilities that the server supports.
 type ServerCapabilitiesExperimental map[string]map[string]interface{}
@@ -2812,7 +2745,7 @@ type SetLevelRequest struct {
 type SetLevelRequestParams struct {
 	// The level of logging that the client wants to receive from the server. The
 	// server should send all logs at this level and higher (i.e., more severe) to the
-	// client as notifications/logging/message.
+	// client as notifications/message.
 	Level LoggingLevel `json:"level" yaml:"level" mapstructure:"level"`
 }
 
@@ -2912,46 +2845,14 @@ func (j *SubscribeRequest) UnmarshalJSON(b []byte) error {
 
 // Text provided to or from an LLM.
 type TextContent struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *TextContentAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+	// Optional annotations for the client.
+	Annotations *Annotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
 
 	// The text content of the message.
 	Text string `json:"text" yaml:"text" mapstructure:"text"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
-type TextContentAnnotations struct {
-	// Describes who the intended customer of this object or data is.
-	//
-	// It can include multiple entries to indicate content useful for multiple
-	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
-
-	// Describes how important this data is for operating the server.
-	//
-	// A value of 1 means "most important," and indicates that the data is
-	// effectively required, while 0 means "least important," and indicates that
-	// the data is entirely optional.
-	Priority *float64 `json:"priority,omitempty" yaml:"priority,omitempty" mapstructure:"priority,omitempty"`
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *TextContentAnnotations) UnmarshalJSON(b []byte) error {
-	type Plain TextContentAnnotations
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	if plain.Priority != nil && 1 < *plain.Priority {
-		return fmt.Errorf("field %s: must be <= %v", "priority", 1)
-	}
-	if plain.Priority != nil && 0 > *plain.Priority {
-		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
-	}
-	*j = TextContentAnnotations(plain)
-	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -3010,7 +2911,13 @@ func (j *TextResourceContents) UnmarshalJSON(b []byte) error {
 
 // Definition for a tool the client can call.
 type Tool struct {
+	// Optional additional tool information.
+	Annotations *ToolAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
+
 	// A human-readable description of the tool.
+	//
+	// This can be used by clients to improve the LLM's understanding of available
+	// tools. It can be thought of like a "hint" to the model.
 	Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
 
 	// A JSON Schema object defining the expected parameters for the tool.
@@ -3018,6 +2925,48 @@ type Tool struct {
 
 	// The name of the tool.
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
+}
+
+// Additional properties describing a Tool to clients.
+//
+// NOTE: all properties in ToolAnnotations are **hints**.
+// They are not guaranteed to provide a faithful description of
+// tool behavior (including descriptive properties like `title`).
+//
+// Clients should never make tool use decisions based on ToolAnnotations
+// received from untrusted servers.
+type ToolAnnotations struct {
+	// If true, the tool may perform destructive updates to its environment.
+	// If false, the tool performs only additive updates.
+	//
+	// (This property is meaningful only when `readOnlyHint == false`)
+	//
+	// Default: true
+	DestructiveHint *bool `json:"destructiveHint,omitempty" yaml:"destructiveHint,omitempty" mapstructure:"destructiveHint,omitempty"`
+
+	// If true, calling the tool repeatedly with the same arguments
+	// will have no additional effect on the its environment.
+	//
+	// (This property is meaningful only when `readOnlyHint == false`)
+	//
+	// Default: false
+	IdempotentHint *bool `json:"idempotentHint,omitempty" yaml:"idempotentHint,omitempty" mapstructure:"idempotentHint,omitempty"`
+
+	// If true, this tool may interact with an "open world" of external
+	// entities. If false, the tool's domain of interaction is closed.
+	// For example, the world of a web search tool is open, whereas that
+	// of a memory tool is not.
+	//
+	// Default: true
+	OpenWorldHint *bool `json:"openWorldHint,omitempty" yaml:"openWorldHint,omitempty" mapstructure:"openWorldHint,omitempty"`
+
+	// If true, the tool does not modify its environment.
+	//
+	// Default: false
+	ReadOnlyHint *bool `json:"readOnlyHint,omitempty" yaml:"readOnlyHint,omitempty" mapstructure:"readOnlyHint,omitempty"`
+
+	// A human-readable title for the tool.
+	Title *string `json:"title,omitempty" yaml:"title,omitempty" mapstructure:"title,omitempty"`
 }
 
 // A JSON Schema object defining the expected parameters for the tool.
